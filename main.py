@@ -1527,12 +1527,29 @@ def process_announcements(
 # Main loop
 # ---------------------------------------------------------------------------
 
-def run_check(settings: dict, state: dict) -> None:
+def run_check(
+    settings: dict, state: dict, only_university: str | None = None
+) -> None:
     settings["ai_requests_this_run"] = 0
     started = now_dhaka()
+
+    universities = UNIVERSITIES
+    if only_university:
+        target = only_university.strip().lower()
+        universities = [
+            item for item in UNIVERSITIES
+            if str(item.get("id", "")).lower() == target
+        ]
+        if not universities:
+            logger.error(
+                "No university found with id %r. Check universities.py.",
+                only_university,
+            )
+            return
+
     logger.info(
         "Starting check of %s universities at %s",
-        len(UNIVERSITIES),
+        len(universities),
         started.strftime("%Y-%m-%d %H:%M:%S"),
     )
 
@@ -1546,14 +1563,14 @@ def run_check(settings: dict, state: dict) -> None:
             }
         )
 
-        for index, university in enumerate(UNIVERSITIES, start=1):
+        for index, university in enumerate(universities, start=1):
             if not isinstance(university, dict) or not university.get("name"):
                 logger.error("Skipping invalid university entry #%s.", index)
                 continue
 
             logger.info(
                 "[%s/%s] Checking %s",
-                index, len(UNIVERSITIES), university["name"],
+                index, len(universities), university["name"],
             )
             try:
                 content = crawl_university(university, http, settings)
@@ -1765,6 +1782,11 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help="validate the bot token and wait for a message to discover the chat ID",
     )
+    parser.add_argument(
+        "--only",
+        metavar="ID",
+        help="check only one university from universities.py (for example: ju)",
+    )
     return parser.parse_args()
 
 
@@ -1808,7 +1830,7 @@ def main() -> int:
     try:
         while True:
             try:
-                run_check(settings, state)
+                run_check(settings, state, args.only)
             except KeyboardInterrupt:
                 raise
             except Exception as exc:

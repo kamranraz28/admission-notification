@@ -251,6 +251,14 @@ python main.py --once
 
 A currently open admission window may be notified immediately on the first run.
 
+To check only one university:
+
+```powershell
+python main.py --once --only ju
+```
+
+Use the `id` value from `universities.py`, such as `ju`, `ru`, or `gst`.
+
 ### Start continuous monitoring
 
 ```powershell
@@ -465,7 +473,8 @@ universities every 4 hours even when your PC is off.
    The legacy `GEMINI_API_KEY` may stay in repository secrets. It is used only
    as a temporary fallback if `OPENROUTER_API_KEY` has not been added yet.
 4. Open the **Actions** tab, select **University admission check**, and click
-   **Run workflow** once to test it.
+   **Run workflow** once to test it. You can optionally enter a university id
+   such as `ju` to check only that university.
 5. After a successful run, it will run from the schedule every 4 hours.
 
 The workflow:

@@ -6,6 +6,11 @@ on:
     # GitHub is busy.
     - cron: "0 */4 * * *"
   workflow_dispatch:
+    inputs:
+      only_university:
+        description: "Optional university id, e.g. ju. Leave empty for all."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -29,6 +34,7 @@ jobs:
       CHECK_INTERVAL_MINUTES: "240"
       MAX_AI_REQUESTS_PER_RUN: "8"
       PLAYWRIGHT_FALLBACK: "true"
+      ONLY_UNIVERSITY: ${{ github.event.inputs.only_university }}
 
       # Fallback only when OpenRouter is missing or a request fails.
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -62,7 +68,12 @@ jobs:
           fi
 
       - name: Check universities once
-        run: python main.py --once
+        run: |
+          if [ -n "$ONLY_UNIVERSITY" ]; then
+            python main.py --once --only "$ONLY_UNIVERSITY"
+          else
+            python main.py --once
+          fi
 
       - name: Save notified.json
         if: always()
