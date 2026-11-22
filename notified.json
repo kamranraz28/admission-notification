@@ -12,6 +12,19 @@
       "source_url": "https://admission.ru.ac.bd/",
       "first_notified_at": "2026-11-22T12:29:18+06:00",
       "last_notified_at": "2026-11-22T15:04:58+06:00"
+    },
+    "ju|2026-2027|undergraduate": {
+      "university": "Jahangirnagar University",
+      "session": "2026-2027",
+      "program": "Undergraduate",
+      "status": "Application Started",
+      "start_date": "2026-11-22",
+      "deadline": "2026-12-15",
+      "apply_url": "https://juadmission.org/application",
+      "notice_url": "https://juniv.edu/discussion/18670",
+      "source_url": "https://juadmission.org/application-instruction",
+      "first_notified_at": "2026-11-22T15:31:38+06:00",
+      "last_notified_at": "2026-11-22T15:31:38+06:00"
     }
   }
 }
