@@ -1578,7 +1578,7 @@ def run_check(settings: dict, state: dict) -> None:
                     continue
 
                 logger.info(
-                    "Gemini returned %s announcement(s) for %s.",
+                    "AI returned %s announcement(s) for %s.",
                     len(raw_announcements), university["name"],
                 )
                 process_announcements(
