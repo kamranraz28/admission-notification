@@ -170,17 +170,18 @@ For a group, add your bot to the group, send a message in the group, then use
 2. Sign in and create an API key.
 3. Put it in `OPENROUTER_API_KEY`.
 
-The default free model is `google/gemma-4-31b-it:free`, with
-`openrouter/free` as a fallback. Free models currently allow about
-**50 requests per day**; the 4-hour schedule uses about 42, with a per-run
-request budget of 8 to leave room for retries.
+The default free model is `nvidia/nemotron-3.5-lightning:free`, with
+`inclusionai/ling-3.2-flash:free` as a fallback. Free models currently allow
+about **50 requests per day**; the 4-hour schedule uses about 42, with a
+per-run request budget of 8 to leave room for retries.
 
 ## Optional: legacy Gemini provider
 
 The original Gemini integration remains in `main.py`. It is disabled because
 `AI_PROVIDER=openrouter` and the Gemini lines are commented out. If
-`OPENROUTER_API_KEY` is missing but `GEMINI_API_KEY` is set, the bot temporarily
-falls back to Gemini rather than stopping. To use Gemini intentionally:
+`OPENROUTER_API_KEY` is missing, or an OpenRouter request fails for a university,
+the bot falls back to Gemini rather than skipping that university. To use Gemini
+intentionally:
 
 ```dotenv
 AI_PROVIDER=gemini
@@ -210,8 +211,8 @@ TELEGRAM_CHAT_ID=your_telegram_chat_id
 Optional settings:
 
 ```dotenv
-OPENROUTER_MODEL=google/gemma-4-31b-it:free
-OPENROUTER_FALLBACK_MODEL=openrouter/free
+OPENROUTER_MODEL=nvidia/nemotron-3.5-lightning:free
+OPENROUTER_FALLBACK_MODEL=inclusionai/ling-3.2-flash:free
 CHECK_INTERVAL_MINUTES=240
 REQUEST_TIMEOUT_SECONDS=25
 MAX_PAGES_PER_UNIVERSITY=5

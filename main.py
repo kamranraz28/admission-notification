@@ -222,7 +222,8 @@ def load_settings(require_ai: bool = True) -> dict | None:
         )
         return None
 
-    default_openrouter = "google/gemma-4-31b-it:free"
+    default_openrouter = "nvidia/nemotron-3.5-lightning:free"
+    default_openrouter_fallback = "inclusionai/ling-3.2-flash:free"
     settings = {
         "ai_provider": ai_provider,
         "openrouter_key": openrouter_key,
@@ -230,7 +231,7 @@ def load_settings(require_ai: bool = True) -> dict | None:
             "OPENROUTER_MODEL", default_openrouter
         ).strip() or default_openrouter,
         "openrouter_fallback_model": os.getenv(
-            "OPENROUTER_FALLBACK_MODEL", "openrouter/free"
+            "OPENROUTER_FALLBACK_MODEL", default_openrouter_fallback
         ).strip(),
         # Legacy Gemini provider. Disabled by default; set AI_PROVIDER=gemini.
         "gemini_key": gemini_key,
@@ -949,6 +950,9 @@ def analyze_with_openrouter(
             ],
             "temperature": 0.1,
             "max_tokens": 8192,
+            # Several free models are reasoning models. Disable hidden reasoning
+            # so the whole output budget is available for the JSON answer.
+            "reasoning": {"enabled": False},
         }
 
         try:
@@ -1041,7 +1045,19 @@ def analyze_announcements(
 ) -> list[dict] | None:
     if settings["ai_provider"] == "gemini":
         return analyze_with_gemini(university, content, settings, session)
-    return analyze_with_openrouter(university, content, settings, session)
+
+    result = analyze_with_openrouter(university, content, settings, session)
+    if result is not None:
+        return result
+
+    gemini_key = settings.get("gemini_key", "").strip()
+    if gemini_key and gemini_key not in PLACEHOLDER_VALUES:
+        logger.warning(
+            "OpenRouter failed for %s; retrying with the legacy Gemini provider.",
+            university["name"],
+        )
+        return analyze_with_gemini(university, content, settings, session)
+    return None
 
 
 # ---------------------------------------------------------------------------
