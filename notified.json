@@ -25,6 +25,19 @@
       "source_url": "https://juadmission.org/application-instruction",
       "first_notified_at": "2026-11-22T15:31:38+06:00",
       "last_notified_at": "2026-11-22T15:31:38+06:00"
+    },
+    "cou|2025-2026|undergraduate": {
+      "university": "Comilla University",
+      "session": "2025-2026",
+      "program": "Undergraduate",
+      "status": "Application Started",
+      "start_date": "2025-11-27",
+      "deadline": null,
+      "apply_url": null,
+      "notice_url": "https://cou.ac.bd/admission",
+      "source_url": "https://cou.ac.bd/admission",
+      "first_notified_at": "2026-11-23T01:15:34+06:00",
+      "last_notified_at": "2026-11-23T01:15:34+06:00"
     }
   }
 }
