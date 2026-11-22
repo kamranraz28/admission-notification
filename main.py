@@ -42,6 +42,7 @@ STATE_FILE = BASE_DIR / "notified.json"
 LOG_FILE = BASE_DIR / "bot.log"
 
 DHAKA_TZ = timezone(timedelta(hours=6))
+OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 USER_AGENT = (
@@ -110,6 +111,7 @@ MONTH_NAMES = (
 BENGALI_DIGITS = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
 
 PLACEHOLDER_VALUES = {
+    "your_openrouter_api_key",
     "your_gemini_api_key",
     "your_telegram_bot_token",
     "your_telegram_chat_id",
@@ -178,16 +180,29 @@ def env_bool(name: str, default: bool) -> bool:
     return raw not in ("0", "false", "no", "off")
 
 
-def load_settings(require_gemini: bool = True) -> dict | None:
+def load_settings(require_ai: bool = True) -> dict | None:
     load_dotenv(BASE_DIR / ".env")
 
+    ai_provider = os.getenv("AI_PROVIDER", "openrouter").strip().lower()
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
 
+    if ai_provider not in ("openrouter", "gemini"):
+        logger.error("AI_PROVIDER must be 'openrouter' or 'gemini'.")
+        return None
+
     missing = []
-    if require_gemini and (not gemini_key or gemini_key in PLACEHOLDER_VALUES):
-        missing.append("GEMINI_API_KEY")
+    if require_ai:
+        if ai_provider == "openrouter" and (
+            not openrouter_key or openrouter_key in PLACEHOLDER_VALUES
+        ):
+            missing.append("OPENROUTER_API_KEY")
+        if ai_provider == "gemini" and (
+            not gemini_key or gemini_key in PLACEHOLDER_VALUES
+        ):
+            missing.append("GEMINI_API_KEY")
     if not bot_token or bot_token in PLACEHOLDER_VALUES:
         missing.append("TELEGRAM_BOT_TOKEN")
     if not chat_id or chat_id in PLACEHOLDER_VALUES:
@@ -200,15 +215,29 @@ def load_settings(require_gemini: bool = True) -> dict | None:
         )
         return None
 
+    default_openrouter = "google/gemma-4-31b-it:free"
     settings = {
+        "ai_provider": ai_provider,
+        "openrouter_key": openrouter_key,
+        "openrouter_model": os.getenv(
+            "OPENROUTER_MODEL", default_openrouter
+        ).strip() or default_openrouter,
+        "openrouter_fallback_model": os.getenv(
+            "OPENROUTER_FALLBACK_MODEL", "openrouter/free"
+        ).strip(),
+        # Legacy Gemini provider. Disabled by default; set AI_PROVIDER=gemini.
         "gemini_key": gemini_key,
         "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
         or "gemini-3.5-flash-lite",
         "bot_token": bot_token,
         "chat_id": chat_id,
-        "interval_minutes": env_int("CHECK_INTERVAL_MINUTES", 30, 1),
+        "interval_minutes": env_int("CHECK_INTERVAL_MINUTES", 240, 1),
         "request_timeout": env_int("REQUEST_TIMEOUT_SECONDS", 25, 5),
         "max_pages": env_int("MAX_PAGES_PER_UNIVERSITY", 5, 2),
+        "max_ai_requests_per_run": env_int(
+            "MAX_AI_REQUESTS_PER_RUN", len(UNIVERSITIES) + 1, 1
+        ),
+        "ai_requests_this_run": 0,
         "playwright_fallback": env_bool("PLAYWRIGHT_FALLBACK", True),
         "dry_run": False,
         "state_file": STATE_FILE,
@@ -729,7 +758,7 @@ GEMINI_RESPONSE_SCHEMA = {
 }
 
 
-def build_gemini_prompt(university: dict, content: dict, today: date) -> str:
+def build_analysis_prompt(university: dict, content: dict, today: date) -> str:
     page_urls = "\n".join(f"- {page['url']}" for page in content["pages"])
     return f"""
 UNIVERSITY BEING MONITORED:
@@ -834,15 +863,187 @@ def parse_json_response(text: str) -> dict:
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end <= start:
-            raise ValueError("Gemini response did not contain a JSON object")
+            raise ValueError("AI response did not contain a JSON object")
         parsed = json.loads(text[start : end + 1])
 
     if isinstance(parsed, list):
         parsed = {"announcements": parsed}
     if not isinstance(parsed, dict):
-        raise ValueError("Gemini response JSON was not an object")
+        raise ValueError("AI response JSON was not an object")
     return parsed
 
+
+def extract_openrouter_text(payload: dict) -> str:
+    error = payload.get("error")
+    if error:
+        if isinstance(error, dict):
+            raise ValueError(str(error.get("message", "OpenRouter error")))
+        raise ValueError(str(error))
+
+    choices = payload.get("choices") or []
+    if not choices:
+        raise ValueError("OpenRouter returned no choices")
+
+    choice = choices[0]
+    message = choice.get("message") or {}
+    content = message.get("content")
+    if isinstance(content, list):
+        content = "".join(
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict)
+        )
+    if not content:
+        finish_reason = choice.get("finish_reason", "unknown")
+        raise ValueError(
+            f"OpenRouter returned no text (finish reason: {finish_reason})"
+        )
+    return str(content).strip()
+
+
+def analyze_with_openrouter(
+    university: dict,
+    content: dict,
+    settings: dict,
+    session: requests.Session,
+) -> list[dict] | None:
+    prompt = build_analysis_prompt(university, content, now_dhaka().date())
+    models = [settings["openrouter_model"]]
+    fallback_model = settings.get("openrouter_fallback_model", "").strip()
+    if fallback_model and fallback_model != models[0]:
+        models.append(fallback_model)
+
+    headers = {
+        "Authorization": f"Bearer {settings['openrouter_key']}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/kamranraz28/admission-notification",
+        "X-Title": "University Admission Bot",
+    }
+
+    last_error = ""
+    for model in models:
+        budget = settings.get("max_ai_requests_per_run", len(UNIVERSITIES) + 1)
+        used = settings.get("ai_requests_this_run", 0)
+        if used >= budget:
+            last_error = "per-run request budget reached"
+            logger.warning(
+                "OpenRouter request budget reached for this run (%s). "
+                "Remaining universities will be checked next cycle.",
+                budget,
+            )
+            break
+        settings["ai_requests_this_run"] = used + 1
+
+        body = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.1,
+            "max_tokens": 8192,
+        }
+
+        try:
+            response = session.post(
+                OPENROUTER_ENDPOINT,
+                headers=headers,
+                json=body,
+                timeout=120,
+            )
+        except requests.RequestException as exc:
+            last_error = type(exc).__name__
+            logger.warning(
+                "OpenRouter request failed for %s (%s).",
+                university["name"], last_error,
+            )
+            continue
+
+        if response.status_code == 200:
+            try:
+                payload = response.json()
+                response_text = extract_openrouter_text(payload)
+                parsed = parse_json_response(response_text)
+                announcements = parsed.get("announcements", [])
+                if not isinstance(announcements, list):
+                    raise ValueError("announcements is not a list")
+            except (ValueError, json.JSONDecodeError) as exc:
+                last_error = "invalid response"
+                logger.error(
+                    "Could not read OpenRouter response for %s using %s: %s",
+                    university["name"], model, exc,
+                )
+                continue
+
+            if not announcements:
+                finish_reason = (
+                    (payload.get("choices") or [{}])[0].get("finish_reason")
+                )
+                if finish_reason == "length":
+                    logger.warning(
+                        "OpenRouter response was truncated for %s.",
+                        university["name"],
+                    )
+            return [item for item in announcements if isinstance(item, dict)]
+
+        error_message = ""
+        try:
+            error_payload = response.json()
+            error_data = error_payload.get("error")
+            if isinstance(error_data, dict):
+                error_message = str(error_data.get("message", ""))[:400]
+            elif error_data:
+                error_message = str(error_data)[:400]
+        except ValueError:
+            pass
+
+        last_error = f"HTTP {response.status_code}"
+        logger.warning(
+            "OpenRouter %s for %s using %s%s",
+            last_error,
+            university["name"],
+            model,
+            f": {error_message}" if error_message else "",
+        )
+
+        if response.status_code in (401, 402, 403):
+            logger.error(
+                "OpenRouter rejected the request. Check OPENROUTER_API_KEY "
+                "and account limits."
+            )
+            return None
+
+        if response.status_code in (400, 404, 408, 429, 500, 502, 503, 504):
+            # Try the fallback model, subject to the per-run request budget.
+            continue
+
+        break
+
+    logger.error(
+        "OpenRouter analysis failed for %s after trying %s (%s).",
+        university["name"], ", ".join(models), last_error,
+    )
+    return None
+
+
+def analyze_announcements(
+    university: dict,
+    content: dict,
+    settings: dict,
+    session: requests.Session,
+) -> list[dict] | None:
+    if settings["ai_provider"] == "gemini":
+        return analyze_with_gemini(university, content, settings, session)
+    return analyze_with_openrouter(university, content, settings, session)
+
+
+# ---------------------------------------------------------------------------
+# Legacy Gemini provider
+# ---------------------------------------------------------------------------
+# Gemini is kept for optional use. It is not called unless AI_PROVIDER=gemini.
+# To re-enable it, set AI_PROVIDER=gemini and GEMINI_API_KEY in .env, and pass
+# the GEMINI_API_KEY secret in GitHub Actions.
+# ---------------------------------------------------------------------------
 
 def analyze_with_gemini(
     university: dict,
@@ -852,7 +1053,7 @@ def analyze_with_gemini(
 ) -> list[dict] | None:
     model = settings["gemini_model"]
     endpoint = GEMINI_ENDPOINT.format(model=model)
-    prompt = build_gemini_prompt(university, content, now_dhaka().date())
+    prompt = build_analysis_prompt(university, content, now_dhaka().date())
 
     body = {
         "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
@@ -1304,6 +1505,7 @@ def process_announcements(
 # ---------------------------------------------------------------------------
 
 def run_check(settings: dict, state: dict) -> None:
+    settings["ai_requests_this_run"] = 0
     started = now_dhaka()
     logger.info(
         "Starting check of %s universities at %s",
@@ -1346,7 +1548,7 @@ def run_check(settings: dict, state: dict) -> None:
                     university["name"],
                 )
 
-                raw_announcements = analyze_with_gemini(
+                raw_announcements = analyze_announcements(
                     university, content, settings, http
                 )
                 if raw_announcements is None:
@@ -1551,20 +1753,26 @@ def main() -> int:
         return get_chat_id_interactive()
 
     if args.test_telegram:
-        settings = load_settings(require_gemini=False)
+        settings = load_settings(require_ai=False)
         if settings is None:
             return 1
         return test_telegram(settings)
 
-    settings = load_settings(require_gemini=True)
+    settings = load_settings(require_ai=True)
     if settings is None:
         return 1
     settings["dry_run"] = args.dry_run
 
+    active_model = (
+        settings["gemini_model"]
+        if settings["ai_provider"] == "gemini"
+        else settings["openrouter_model"]
+    )
     state = load_state(settings["state_file"])
     logger.info(
-        "Admission bot started. Model=%s, interval=%s min, universities=%s",
-        settings["gemini_model"],
+        "Admission bot started. Provider=%s, model=%s, interval=%s min, universities=%s",
+        settings["ai_provider"],
+        active_model,
         settings["interval_minutes"],
         len(UNIVERSITIES),
     )

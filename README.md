@@ -1,11 +1,12 @@
 # University Admission Notification Bot
 
 A simple Python bot that watches official Bangladeshi university admission
-pages, asks Google Gemini whether online applications are currently open, and
-sends a Telegram notification when a new application window opens.
+pages, asks OpenRouter's AI models whether online applications are currently
+open, and sends a Telegram notification when a new application window opens.
 
-It checks every 30 minutes by default and stores what it has already notified in
-`notified.json`.
+It checks every 4 hours by default and stores what it has already notified in
+`notified.json`. The legacy Gemini provider is kept in the code and configuration
+examples but is disabled by default.
 
 ---
 
@@ -13,9 +14,9 @@ It checks every 30 minutes by default and stores what it has already notified in
 
 1. Downloads the admission notice/portal pages listed in `universities.py`.
 2. Follows nearby admission-related links (up to 5 pages per university).
-3. Sends the page text and links to Gemini for strict extraction.
+3. Sends the page text and links to OpenRouter for strict extraction.
 4. Notifies you on Telegram only when:
-   - Gemini says the online application is **open**, and
+   - the AI says the online application is **open**, and
    - the status is `open`, and
    - today is not before the start date, and
    - today is not after the deadline.
@@ -163,15 +164,28 @@ For a group, add your bot to the group, send a message in the group, then use
 
 ---
 
-## Get a Gemini API key
+## Get an OpenRouter API key
 
-1. Go to <https://aistudio.google.com/apikey>.
-2. Sign in with a Google account.
-3. Create an API key.
-4. Put it in `GEMINI_API_KEY`.
+1. Go to <https://openrouter.ai/keys>.
+2. Sign in and create an API key.
+3. Put it in `OPENROUTER_API_KEY`.
 
-The default model is `gemini-3.5-flash-lite`, which is inexpensive for this
-kind of extraction task. You can change it in `.env` with `GEMINI_MODEL`.
+The default free model is `google/gemma-4-31b-it:free`, with
+`openrouter/free` as a fallback. Free models currently allow about
+**50 requests per day**; the 4-hour schedule uses about 42, with a per-run
+request budget of 8 to leave room for retries.
+
+## Optional: legacy Gemini provider
+
+The original Gemini integration remains in `main.py`. It is disabled because
+`AI_PROVIDER=openrouter` and the Gemini lines are commented out. To use it
+instead:
+
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.5-flash-lite
+```
 
 ---
 
@@ -183,10 +197,11 @@ Open `.env` in Notepad:
 notepad .env
 ```
 
-Set the three required values:
+Set the required values:
 
 ```dotenv
-GEMINI_API_KEY=your_gemini_api_key
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_api_key
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_telegram_chat_id
 ```
@@ -194,10 +209,12 @@ TELEGRAM_CHAT_ID=your_telegram_chat_id
 Optional settings:
 
 ```dotenv
-GEMINI_MODEL=gemini-3.5-flash-lite
-CHECK_INTERVAL_MINUTES=30
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
+OPENROUTER_FALLBACK_MODEL=openrouter/free
+CHECK_INTERVAL_MINUTES=240
 REQUEST_TIMEOUT_SECONDS=25
 MAX_PAGES_PER_UNIVERSITY=5
+MAX_AI_REQUESTS_PER_RUN=8
 PLAYWRIGHT_FALLBACK=true
 ```
 
@@ -221,8 +238,8 @@ You should receive `✅ Admission Bot connected!` in Telegram.
 python main.py --once --dry-run
 ```
 
-This still uses Gemini, but it prints the notifications it *would* send and does
-not modify `notified.json`. Use it to check the results first.
+This still uses the configured AI provider, but it prints the notifications it
+*would* send and does not modify `notified.json`. Use it to check the results first.
 
 ### Run one real check
 
@@ -238,7 +255,7 @@ A currently open admission window may be notified immediately on the first run.
 python main.py
 ```
 
-The bot checks immediately, then every 30 minutes. Stop it with `Ctrl+C`.
+The bot checks immediately, then every 4 hours. Stop it with `Ctrl+C`.
 
 ---
 
@@ -367,17 +384,18 @@ The bot token is wrong or was revoked. Create a new token with BotFather.
 - The chat ID is wrong.
 - For a group, add the bot to the group and get the negative group ID.
 
-### `429` from Gemini
+### `429` from OpenRouter
 
-The API rate limit or quota was reached. The bot waits/retries, but repeated
-`429` messages mean you should reduce the university list, use a key with more
-quota, or increase `CHECK_INTERVAL_MINUTES`.
+The free-model daily limit or upstream rate limit was reached. Free accounts
+currently allow about 50 free-model requests per day. The 4-hour schedule uses
+about 42, and `MAX_AI_REQUESTS_PER_RUN=8` prevents runaway retries. Reduce manual
+runs or increase `CHECK_INTERVAL_MINUTES` if needed.
 
-### Gemini returns a model `404` or "model not found"
+### OpenRouter returns a model `404` or "model not found"
 
-The configured `GEMINI_MODEL` is not available to your API key. Open
-<https://ai.google.dev/gemini-api/docs/models> and set `GEMINI_MODEL` in `.env`
-to a currently available model.
+The configured free model may have been removed or made unavailable. Open
+<https://openrouter.ai/models?max_price=0> and set `OPENROUTER_MODEL` in `.env`
+to a currently available free model.
 
 ### A university returns `403`, `404`, or no content
 
@@ -390,7 +408,7 @@ remove that university. Errors for one source do not stop the others.
 Check `bot.log` for:
 
 - page-fetch errors,
-- Gemini saying the status is `upcoming`, `closed`, or `unknown`,
+- the AI saying the status is `upcoming`, `closed`, or `unknown`,
 - a date rejection because the deadline has passed,
 - "Already notified".
 
@@ -415,7 +433,7 @@ Set it to **Run only when user is logged on** if you want to see the console.
 ## Option: run for free with GitHub Actions
 
 The included workflow at `.github/workflows/admission-check.yml` checks the
-universities every 30 minutes even when your PC is off.
+universities every 4 hours even when your PC is off.
 
 ### Setup
 
@@ -438,12 +456,15 @@ universities every 30 minutes even when your PC is off.
 2. **Never commit `.env`.** It is already ignored by `.gitignore`.
 3. In GitHub, open **Settings → Secrets and variables → Actions → New repository
    secret** and add:
-   - `GEMINI_API_KEY`
+   - `OPENROUTER_API_KEY`
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
+
+   The legacy `GEMINI_API_KEY` can stay in repository secrets but is not passed
+   to the workflow while Gemini is disabled.
 4. Open the **Actions** tab, select **University admission check**, and click
    **Run workflow** once to test it.
-5. After a successful run, it will run from the schedule every 30 minutes.
+5. After a successful run, it will run from the schedule every 4 hours.
 
 The workflow:
 
@@ -474,12 +495,13 @@ Actions runs.
 
 ## Cost and reliability notes
 
-- Every check uses one Gemini request per university whose pages are fetched.
-  With 7 sources and a 30-minute interval, that is up to 336 requests per day.
-  Adjust the list or interval if your API quota/cost is a concern.
-- Gemini is called through its REST API using `requests`; no extra Gemini SDK is
+- Every check uses one OpenRouter request per university whose pages are fetched.
+  With 7 sources and a 4-hour interval, that is about 42 requests per day. The
+  workflow caps each run at 8 requests, so retries cannot exceed the free-model
+  daily allowance in normal use.
+- OpenRouter is called through its REST API using `requests`; no extra SDK is
   required.
-- Gemini's answer is an extraction, not an official confirmation. Websites can
+- The AI's answer is an extraction, not an official confirmation. Websites can
   be ambiguous, outdated, or blocked. Verify dates and links on the official
   university site before applying.
 - If a university publishes dates only inside a PDF, the bot can see the PDF

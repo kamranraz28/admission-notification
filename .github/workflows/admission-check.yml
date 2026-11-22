@@ -2,9 +2,9 @@ name: University admission check
 
 on:
   schedule:
-    # GitHub Actions uses UTC. This means every 30 minutes, but scheduled
-    # workflows can be delayed when GitHub is busy.
-    - cron: "*/30 * * * *"
+    # Every 4 hours (UTC). Scheduled workflows can still be delayed when
+    # GitHub is busy.
+    - cron: "0 */4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,12 +20,19 @@ jobs:
     timeout-minutes: 20
 
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AI_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_MODEL: google/gemma-4-31b-it:free
+      OPENROUTER_FALLBACK_MODEL: openrouter/free
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      GEMINI_MODEL: gemini-3.5-flash-lite
-      CHECK_INTERVAL_MINUTES: "30"
+      CHECK_INTERVAL_MINUTES: "240"
+      MAX_AI_REQUESTS_PER_RUN: "8"
       PLAYWRIGHT_FALLBACK: "true"
+
+      # Legacy Gemini provider (disabled):
+      # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # GEMINI_MODEL: gemini-3.5-flash-lite
 
     steps:
       - name: Check out repository
@@ -44,6 +51,13 @@ jobs:
 
       - name: Install Chromium for Playwright
         run: playwright install --with-deps chromium
+
+      - name: Verify OpenRouter secret
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::Add OPENROUTER_API_KEY in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
 
       - name: Check universities once
         run: python main.py --once
