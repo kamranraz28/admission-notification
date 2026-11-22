@@ -198,7 +198,14 @@ def load_settings(require_ai: bool = True) -> dict | None:
         if ai_provider == "openrouter" and (
             not openrouter_key or openrouter_key in PLACEHOLDER_VALUES
         ):
-            missing.append("OPENROUTER_API_KEY")
+            if gemini_key and gemini_key not in PLACEHOLDER_VALUES:
+                logger.warning(
+                    "OPENROUTER_API_KEY is missing; using the legacy Gemini "
+                    "provider as a temporary fallback."
+                )
+                ai_provider = "gemini"
+            else:
+                missing.append("OPENROUTER_API_KEY")
         if ai_provider == "gemini" and (
             not gemini_key or gemini_key in PLACEHOLDER_VALUES
         ):

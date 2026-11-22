@@ -22,17 +22,18 @@ jobs:
     env:
       AI_PROVIDER: openrouter
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_MODEL: google/gemma-4-31b-it:free
-      OPENROUTER_FALLBACK_MODEL: openrouter/free
+      OPENROUTER_MODEL: "google/gemma-4-31b-it:free"
+      OPENROUTER_FALLBACK_MODEL: "openrouter/free"
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       CHECK_INTERVAL_MINUTES: "240"
       MAX_AI_REQUESTS_PER_RUN: "8"
       PLAYWRIGHT_FALLBACK: "true"
 
-      # Legacy Gemini provider (disabled):
-      # GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      # GEMINI_MODEL: gemini-3.5-flash-lite
+      # Temporary fallback only when OPENROUTER_API_KEY is missing.
+      # Once the OpenRouter secret exists, Gemini is not called.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-3.5-flash-lite
 
     steps:
       - name: Check out repository
@@ -52,11 +53,13 @@ jobs:
       - name: Install Chromium for Playwright
         run: playwright install --with-deps chromium
 
-      - name: Verify OpenRouter secret
+      - name: Check AI provider secret
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error::Add OPENROUTER_API_KEY in Settings -> Secrets and variables -> Actions."
-            exit 1
+            echo "::warning::OPENROUTER_API_KEY is missing; using Gemini fallback for this run."
+            echo "Add OPENROUTER_API_KEY in Settings -> Secrets and variables -> Actions."
+          else
+            echo "Using OpenRouter."
           fi
 
       - name: Check universities once

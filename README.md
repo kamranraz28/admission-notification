@@ -178,8 +178,9 @@ request budget of 8 to leave room for retries.
 ## Optional: legacy Gemini provider
 
 The original Gemini integration remains in `main.py`. It is disabled because
-`AI_PROVIDER=openrouter` and the Gemini lines are commented out. To use it
-instead:
+`AI_PROVIDER=openrouter` and the Gemini lines are commented out. If
+`OPENROUTER_API_KEY` is missing but `GEMINI_API_KEY` is set, the bot temporarily
+falls back to Gemini rather than stopping. To use Gemini intentionally:
 
 ```dotenv
 AI_PROVIDER=gemini
@@ -460,8 +461,8 @@ universities every 4 hours even when your PC is off.
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
 
-   The legacy `GEMINI_API_KEY` can stay in repository secrets but is not passed
-   to the workflow while Gemini is disabled.
+   The legacy `GEMINI_API_KEY` may stay in repository secrets. It is used only
+   as a temporary fallback if `OPENROUTER_API_KEY` has not been added yet.
 4. Open the **Actions** tab, select **University admission check**, and click
    **Run workflow** once to test it.
 5. After a successful run, it will run from the schedule every 4 hours.
