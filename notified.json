@@ -38,6 +38,58 @@
       "source_url": "https://cou.ac.bd/admission",
       "first_notified_at": "2026-11-23T01:15:34+06:00",
       "last_notified_at": "2026-11-23T01:15:34+06:00"
+    },
+    "bup|2026-2027|undergraduate": {
+      "university": "Bangladesh University of Professionals (BUP)",
+      "session": "2026-2027",
+      "program": "Undergraduate",
+      "status": "Application Started",
+      "start_date": null,
+      "deadline": null,
+      "apply_url": "https://admission.bup.edu.bd/Admission/Candidate/SelectProgram?ecat=6",
+      "notice_url": "https://admission.bup.edu.bd/Upload/Notices/Admission%20Notice%20(Jan-2027).pdf",
+      "source_url": "https://admission.bup.edu.bd/admission/Home",
+      "first_notified_at": "2026-11-23T06:39:46+06:00",
+      "last_notified_at": "2026-11-23T06:39:46+06:00"
+    },
+    "bup|2026-2027|postgraduate": {
+      "university": "Bangladesh University of Professionals (BUP)",
+      "session": "2026-2027",
+      "program": "Postgraduate",
+      "status": "Application Started",
+      "start_date": null,
+      "deadline": null,
+      "apply_url": "https://admission.bup.edu.bd/Admission/Candidate/SelectProgram?ecat=6",
+      "notice_url": "https://admission.bup.edu.bd/Upload/Notices/Admission%20Notice%20(Jan-2027).pdf",
+      "source_url": "https://admission.bup.edu.bd/admission/Home",
+      "first_notified_at": "2026-11-23T06:39:47+06:00",
+      "last_notified_at": "2026-11-23T06:39:47+06:00"
+    },
+    "bup|2026-2027|masters-in-cyber-security-professional": {
+      "university": "Bangladesh University of Professionals (BUP)",
+      "session": "2026-2027",
+      "program": "Masters in Cyber Security (Professional)",
+      "status": "Application Started",
+      "start_date": null,
+      "deadline": null,
+      "apply_url": "https://admission.bup.edu.bd/Admission/Candidate/SelectProgram?ecat=6",
+      "notice_url": "https://admission.bup.edu.bd/admission/Home",
+      "source_url": "https://admission.bup.edu.bd/admission/Home",
+      "first_notified_at": "2026-11-23T06:39:47+06:00",
+      "last_notified_at": "2026-11-23T06:39:47+06:00"
+    },
+    "bup|2026-2027|masters-in-information-communication-technology-professional": {
+      "university": "Bangladesh University of Professionals (BUP)",
+      "session": "2026-2027",
+      "program": "Masters in Information & Communication Technology (Professional)",
+      "status": "Application Started",
+      "start_date": null,
+      "deadline": null,
+      "apply_url": "https://admission.bup.edu.bd/Admission/Candidate/SelectProgram?ecat=6",
+      "notice_url": "https://admission.bup.edu.bd/admission/Home",
+      "source_url": "https://admission.bup.edu.bd/admission/Home",
+      "first_notified_at": "2026-11-23T06:39:47+06:00",
+      "last_notified_at": "2026-11-23T06:39:47+06:00"
     }
   }
 }
