@@ -90,6 +90,19 @@
       "source_url": "https://admission.bup.edu.bd/admission/Home",
       "first_notified_at": "2026-11-23T06:39:47+06:00",
       "last_notified_at": "2026-11-23T06:39:47+06:00"
+    },
+    "cou|2026-2027|executive-m-sc-in-computer-science-emcs": {
+      "university": "Comilla University",
+      "session": "2026-2027",
+      "program": "Executive M.Sc. in Computer Science (EMCS)",
+      "status": "Application Started",
+      "start_date": "2026-11-24",
+      "deadline": "2026-12-15",
+      "apply_url": null,
+      "notice_url": "https://cou.ac.bd/",
+      "source_url": "https://cou.ac.bd/",
+      "first_notified_at": "2026-11-24T20:41:11+06:00",
+      "last_notified_at": "2026-11-24T20:41:11+06:00"
     }
   }
 }
