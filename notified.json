@@ -44,13 +44,13 @@
       "session": "2026-2027",
       "program": "Undergraduate",
       "status": "Application Started",
-      "start_date": null,
-      "deadline": null,
+      "start_date": "2026-11-01",
+      "deadline": "2026-12-31",
       "apply_url": "https://admission.bup.edu.bd/Admission/Candidate/SelectProgram?ecat=6",
-      "notice_url": "https://admission.bup.edu.bd/Upload/Notices/Admission%20Notice%20(Jan-2027).pdf",
-      "source_url": "https://admission.bup.edu.bd/admission/Home",
+      "notice_url": "https://bup.edu.bd/public/upload/news/20261118_1794972706.pdf",
+      "source_url": "https://bup.edu.bd/",
       "first_notified_at": "2026-11-23T06:39:46+06:00",
-      "last_notified_at": "2026-11-23T06:39:46+06:00"
+      "last_notified_at": "2026-11-26T06:04:38+06:00"
     },
     "bup|2026-2027|postgraduate": {
       "university": "Bangladesh University of Professionals (BUP)",
